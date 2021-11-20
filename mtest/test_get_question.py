@@ -7,7 +7,7 @@ def test_get_question_position_1():
     assert response.status_code == 200
     assert isinstance(
         response.json(), dict
-    ), f".get_question() returned unexpected json: {response}"
+    ), f".get_question() returned unexpected json: {response.json()}"
     assert response.json()["id"] == 1 and response.json()["position"] == 1
     assert response.json()["question"] == "Which car model/category are you looking for?"
 
@@ -18,7 +18,7 @@ def test_get_question_position_2():
     assert response.status_code == 200
     assert isinstance(
         response.json(), dict
-    ), f".get_question() returned unexpected json: {response}"
+    ), f".get_question() returned unexpected json: {response.json()}"
     assert response.json()["id"] == 3 and response.json()["position"] == 2
     assert response.json()["question"] == "What type of fuel is your ideal car?"
 
@@ -29,7 +29,7 @@ def test_get_question_negative():
     assert response.status_code == 400
     assert isinstance(
         response.json(), dict
-    ), f".get_question() returned unexpected json: {response}"
+    ), f".get_question() returned unexpected json: {response.json()}"
 
 
 def test_get_question_large():
@@ -38,7 +38,7 @@ def test_get_question_large():
     assert response.status_code == 400
     assert isinstance(
         response.json(), dict
-    ), f".get_question() returned unexpected json: {response}"
+    ), f".get_question() returned unexpected json: {response.json()}"
 
 
 def test_get_question_string():
@@ -47,7 +47,7 @@ def test_get_question_string():
     assert response.status_code == 422
     assert isinstance(
         response.json(), dict
-    ), f".get_question() returned unexpected json: {response}"
+    ), f".get_question() returned unexpected json: {response.json()}"
 
 
 def test_get_question_none():
@@ -56,4 +56,4 @@ def test_get_question_none():
     assert response.status_code == 422
     assert isinstance(
         response.json(), dict
-    ), f".get_question() returned unexpected json: {response}"
+    ), f".get_question() returned unexpected json: {response.json()}"
