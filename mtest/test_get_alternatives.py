@@ -7,7 +7,7 @@ def test_get_alternatives_1():
     assert response.status_code == 200
     assert isinstance(
         response.json(), list
-    ), f".get_question() returned unexpected json: {response}"
+    ), f".get_question_alternatives_1() returned unexpected json: {response.json()}"
     print(response.json())
     assert response.json()[0]["id"] == 1 and response.json()[0]["alternative"] == "compact"
     assert response.json()[0]["question_id"] == 1
@@ -22,7 +22,7 @@ def test_get_question_position_2():
     assert response.status_code == 200
     assert isinstance(
         response.json(), list
-    ), f".get_question() returned unexpected json: {response}"
+    ), f".get_question_position_2() returned unexpected json: {response.json()}"
     assert response.json()[0]["id"] == 5 and response.json()[0]["alternative"] == "low"
     assert response.json()[1]["question_id"] == 2 and response.json()[1]["id"] == 6
 
@@ -30,19 +30,19 @@ def test_get_question_position_2():
 def test_get_question_negative():
     alternatives = Alternatives()
     response = alternatives.get_alternatives(question_id=-1)
-    assert response.status_code == 400
+    assert response.status_code == 200
     assert isinstance(
-        response.json(), dict
-    ), f".get_question() returned unexpected json: {response}"
+        response.json(), list
+    ), f".get_question_negative() returned unexpected json: {response.json()}"
 
 
 def test_get_question_large():
     alternatives = Alternatives()
     response = alternatives.get_alternatives(question_id=1000)
-    assert response.status_code == 400
+    assert response.status_code == 200
     assert isinstance(
-        response.json(), dict
-    ), f".get_question() returned unexpected json: {response}"
+        response.json(), list
+    ), f".get_question_large() returned unexpected json: {response.json()}"
 
 
 def test_get_question_string():
@@ -51,7 +51,7 @@ def test_get_question_string():
     assert response.status_code == 422
     assert isinstance(
         response.json(), dict
-    ), f".get_question() returned unexpected json: {response}"
+    ), f".get_question_string() returned unexpected json: {response.json()}"
 
 
 def test_get_question_none():
@@ -60,4 +60,4 @@ def test_get_question_none():
     assert response.status_code == 422
     assert isinstance(
         response.json(), dict
-    ), f".get_question() returned unexpected json: {response}"
+    ), f".get_question_none() returned unexpected json: {response.json()}"
