@@ -29,7 +29,7 @@ uvicorn app.main:app --reload
 ### Run test
 
 ```
-pytest app/test.py
+pytest test/test.py
 ```
 
 ## Run with docker
