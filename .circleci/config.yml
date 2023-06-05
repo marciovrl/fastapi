@@ -1,42 +1,46 @@
-version: 2
+version: 2.1
+
 jobs:
-  unit_test:
+  test:
     docker:
-      - image: circleci/python:3.6.1
+      - image: circleci/python:3.8
 
     working_directory: ~/repo
 
     steps:
       - checkout
 
-      # Download and cache dependencies
-      - restore_cache:
-          keys:
-            - v1-dependencies-{{ checksum "requirements.txt" }}
-            # fallback to using the latest cache if no exact match is found
-            - v1-dependencies-
-
       - run:
-          name: install dependencies
-          command: |
-            python3 -m venv venv
-            . venv/bin/activate
-            pip install -r requirements.txt
-
-      - save_cache:
-          paths:
-            - ./venv
-          key: v1-dependencies-{{ checksum "requirements.txt" }}
-
-      # run tests!
+          name: Upgrade pip
+          command: python -m pip install --upgrade pip
       - run:
-          name: run tests
+          name: Run tests
           command: |
             . venv/bin/activate
-            pytest test/test.py
+            pytest
+
+  build:
+    docker:
+      - image: circleci/python:3.8
+
+    working_directory: ~/repo
+
+    steps:
+      - checkout
+
+      - run:
+          name: Upgrade pip
+          command: python -m pip install --upgrade pip
+      - run:
+          name: Build application
+          command: |
+            # Add build commands here
 
 workflows:
   version: 2
-  build:
+  test_and_build:
     jobs:
-      - unit_test
+      - test
+      - build:
+          requires:
+            - test
