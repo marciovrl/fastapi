@@ -1,0 +1,8 @@
+# The alert text in plain English
+alert: |
+    Count the error rate (4xx-5xx) this service has in the last 10 minutes.
+    Alert when the threshold is above 5% out of total requests.
+    Send a Slack message to the #alerts-playground channel and include all the context you have"
+
+# The provider you've previously connected and want this alert to be generated for
+provider: grafana
