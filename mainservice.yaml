@@ -1,4 +1,4 @@
-# Deployment definition file for python fastapi sample application.
+# Deployment definition file for python FastAPI sample application and NodePort service.
 
 apiVersion: apps/v1
 kind: Deployment
@@ -16,16 +16,14 @@ spec:
     spec:
       containers:
       - name: my-con1
-        image: harikrishnan/fastapi   # docker image that was pushed into my Docker registry.
+        image: harikrishnan/fastapi  # Docker image that was pushed into my Docker registry.
+        imagePullPolicy: Always      # Always pull the latest image from the registry.
         ports:
         - name: http
           containerPort: 8000
 
+---
 
-
-============================
-#expose our application to outeside cluster using Node Port as service.
- 
 apiVersion: v1
 kind: Service
 metadata:
@@ -39,4 +37,5 @@ spec:
     protocol: TCP
     port: 8000
     targetPort: 8000
-    nodePort: 30001  # Choose a port in the range 30000-32767 (or use "0" for a randomly allocated port)
+    nodePort: 30001  # Choose a port in the range 30000-32767 (or use "0" for a randomly allocated port)
+
