@@ -1,0 +1,107 @@
+pipeline {
+    agent any
+
+    parameters {
+        string(name: 'PROJECT_NAME', description: 'Name of the project/repository', defaultValue: 'fastapi')
+        string(name: 'DOCKER_IMAGE_TAG', description: 'Docker image tag for the built image', defaultValue: 'harikrishnan586/fastapi:latest')
+        string(name: 'SONAR_CREDENTIALS_ID', description: 'Jenkins credentials ID for SonarQube access', defaultValue: 'sonar')
+        string(name: 'DOCKER_CREDENTIALS_ID', description: 'Jenkins credentials ID for Docker access', defaultValue: 'dockerPass')
+        string(name: 'SLACK_CHANNEL', description: 'Slack channel to receive notifications', defaultValue: '#python-test')
+        string(name: 'SLACK_TEAM_DOMAIN', description: 'Slack team domain', defaultValue: 'devops-5a15321')
+        string(name: 'SLACK_TOKEN_CREDENTIALS_ID', description: 'Jenkins credentials ID for Slack webhook URL', defaultValue: 'slack-token')
+    }
+
+    stages {
+        stage('GIT SCM Checkout') {
+            steps {
+                git "https://github.com/Skrishnan586/${params.PROJECT_NAME}.git"
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                script {
+                    def scannerHome = tool 'sonarscanner4'
+                    withSonarQubeEnv('sonar-pro') {
+                        sh "${scannerHome}/bin/sonar-scanner -Dsonar.projectKey=${params.PROJECT_NAME}"
+                    }
+                }
+            }
+        }
+
+        stage('Quality Gate') {
+            steps {
+                sleep(time: 35, unit: 'SECONDS')
+                timeout(time: 1, unit: 'HOURS') {
+                    waitForQualityGate abortPipeline: true, credentialsId: 'sonar'
+                }
+            }
+            post {
+                failure {
+                    echo 'Sending email notification from Jenkins'
+                    step([$class: 'Mailer',
+                          notifyEveryUnstableBuild: true,
+                          recipients: emailextrecipients([[$class: 'CulpritsRecipientProvider'],
+                                                          [$class: 'RequesterRecipientProvider']])])
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    withCredentials([string(credentialsId: params.DOCKER_CREDENTIALS_ID, variable: 'dockerPassword')]) {
+                        sh "docker login -u harikrishnan586 -p ${dockerPassword}"
+                        sh "docker build -t ${params.DOCKER_IMAGE_TAG} ."
+                    }
+                }
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                script {
+                    withCredentials([string(credentialsId: params.DOCKER_CREDENTIALS_ID, variable: 'dockerPassword')]) {
+                        sh "docker push ${params.DOCKER_IMAGE_TAG}"
+                    }
+                }
+            }
+        }
+        
+        stage('Approval - Deploy on k8s') {
+            steps {
+                input 'Approve for KOPS Deploy'
+            }
+        }
+
+        stage('Deployment on kops-k8s') {
+            steps {
+                script {
+                    withKubeConfig([credentialsId: 'k8s']) {
+                        sh 'kubectl apply -f mainservice.yaml' // Replace 'deployment.yaml' with your Kubernetes deployment configuration file name
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            script {
+                def status = currentBuild.currentResult
+                slackSend(
+                    color: status == 'SUCCESS' ? 'good' : 'danger',
+                    channel: params.SLACK_CHANNEL,
+                    message: "Build ${status}: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' (${env.BUILD_URL})",
+                    teamDomain: params.SLACK_TEAM_DOMAIN,
+                    tokenCredentialId: params.SLACK_TOKEN_CREDENTIALS_ID
+                )
+            }
+        }
+        failure {
+            mail to: emailextrecipients([[$class: 'CulpritsRecipientProvider'], [$class: 'RequesterRecipientProvider']]),
+                 subject: "Failed: ${currentBuild.currentResult}",
+                 body: "Build failed for ${env.JOB_NAME} [${env.BUILD_NUMBER}]. Check console output: ${env.BUILD_URL}"
+        }
+    }
+}
