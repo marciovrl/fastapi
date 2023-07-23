@@ -1,0 +1,82 @@
+# sonarqube.yaml
+
+# Deploy PostgreSQL as the database for SonarQube
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sonarqube-postgresql
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sonarqube-postgresql  # Changed the label to be more descriptive
+  template:
+    metadata:
+      labels:
+        app: sonarqube-postgresql  # Changed the label to be more descriptive
+    spec:
+      containers:
+      - name: sonarqube-postgresql
+        image: postgres:latest
+        env:
+          - name: POSTGRES_USER
+            value: sonarqube
+          - name: POSTGRES_PASSWORD
+            value: sonarqube
+          - name: POSTGRES_DB
+            value: sonarqube
+        ports:
+        - containerPort: 5432
+        volumeMounts:
+        - name: postgresql-storage
+          mountPath: /var/lib/postgresql/data
+      volumes:
+      - name: postgresql-storage
+        emptyDir: {}
+
+# Deploy SonarQube server
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sonarqube-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sonarqube-server  # Changed the label to be more descriptive
+  template:
+    metadata:
+      labels:
+        app: sonarqube-server  # Changed the label to be more descriptive
+    spec:
+      containers:
+      - name: sonarqube-server
+        image: sonarqube:latest
+        env:
+          - name: SONARQUBE_JDBC_URL
+            value: jdbc:postgresql://sonarqube-postgresql:5432/sonarqube
+          - name: SONARQUBE_JDBC_USERNAME
+            value: sonarqube
+          - name: SONARQUBE_JDBC_PASSWORD
+            value: sonarqube
+        ports:
+        - containerPort: 9000  # Corrected indentation for containerPort
+
+---
+
+# sonarqube-service.yaml
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: sonarqube-service
+spec:
+  type: NodePort
+  selector:
+    app: sonarqube-server  # Make sure this label matches the one used in the SonarQube deployment
+  ports:
+    - protocol: TCP
+      port: 9000
+      targetPort: 9000
+      nodePort: 30001  # Choose any available port number in the range 30000-32767
+

@@ -1,24 +1,26 @@
-# pull official base image
-FROM python:3.8.1-alpine
+# Use an official Python slim-buster image
+FROM python:3.8-slim-buster
 
-# set work directory
+# Set work directory
 WORKDIR /src
 
-# set environment variables
+# Set environment variables
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
-# copy requirements file
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies
 COPY ./requirements.txt /src/requirements.txt
+RUN pip install --no-cache-dir -r /src/requirements.txt
 
-# install dependencies
-RUN set -eux \
-    && apk add --no-cache --virtual .build-deps build-base \
-    libressl-dev libffi-dev gcc musl-dev python3-dev \
-    postgresql-dev \
-    && pip install --upgrade pip setuptools wheel \
-    && pip install -r /src/requirements.txt \
-    && rm -rf /root/.cache/pip
+# Copy the app code
+COPY ./app /src/app
 
-# copy project
-COPY . /src/
+# Set the default command to run the FastAPI server using uvicorn
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
