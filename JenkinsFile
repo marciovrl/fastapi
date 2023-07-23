@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     stages {
-        stage('SCM checkout') {
+        stage('GIT SCM checkout') {
             steps {
                 git 'https://github.com/Skrishnan586/fastapi.git'
             }
@@ -50,13 +50,30 @@ pipeline {
             }
         }
 
+        stage('Notification - Slack') {
+            steps {
+                script {
+                    def status = currentBuild.currentResult
+                    def slackChannel = '#python-test' // Replace with the actual Slack channel name
+
+                    slackSend(
+                        color: status == 'SUCCESS' ? 'good' : 'danger',
+                        channel: slackChannel, // Corrected the variable name here
+                        message: "Build ${status}: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' (${env.BUILD_URL})",
+                        teamDomain: 'devops-5a15321', // Replace with your Slack workspace domain
+                        tokenCredentialId: 'slack-token', // Replace with the ID of the Jenkins credential that stores your Slack webhook URL
+                    )
+                }
+            }
+        }
+
         stage('Approval - Deploy on k8s') {
             steps {
                 input 'Approve for KOPS Deploy'
             }
         }
 
-        stage ('Deploy on k8s') {
+        stage('Deploy on KOPS-k8s') {
             steps {
                 script {
                     withKubeCredentials(kubectlCredentials: [[credentialsId: 'k8s', namespace: 'default']]) {
