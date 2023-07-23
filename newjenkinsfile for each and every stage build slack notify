@@ -1,0 +1,174 @@
+pipeline {
+    agent any
+
+    parameters {
+        string(name: 'PROJECT_NAME', description: 'Name of the project/repository', defaultValue: 'fastapi')
+        string(name: 'DOCKER_IMAGE_TAG', description: 'Docker image tag for the built image', defaultValue: 'harikrishnan586/fastapi:latest')
+        string(name: 'SONAR_CREDENTIALS_ID', description: 'Jenkins credentials ID for SonarQube access', defaultValue: 'sonar')
+        string(name: 'DOCKER_CREDENTIALS_ID', description: 'Jenkins credentials ID for Docker access', defaultValue: 'dockerPass')
+        string(name: 'SLACK_CHANNEL', description: 'Slack channel to receive notifications', defaultValue: '#python-test')
+        string(name: 'SLACK_TEAM_DOMAIN', description: 'Slack team domain', defaultValue: 'devops-5a15321')
+        string(name: 'SLACK_TOKEN_CREDENTIALS_ID', description: 'Jenkins credentials ID for Slack webhook URL', defaultValue: 'slack-token')
+    }
+
+    stages {
+        stage('GIT SCM Checkout') {
+            steps {
+                git "https://github.com/Skrishnan586/${params.PROJECT_NAME}.git"
+            }
+            post {
+                always {
+                    script {
+                        def status = currentBuild.currentResult
+                        slackSend(
+                            color: status == 'SUCCESS' ? 'good' : 'danger',
+                            channel: params.SLACK_CHANNEL,
+                            message: "Stage 'GIT SCM Checkout' ${status}: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' (${env.BUILD_URL})",
+                            teamDomain: params.SLACK_TEAM_DOMAIN,
+                            tokenCredentialId: params.SLACK_TOKEN_CREDENTIALS_ID
+                        )
+                    }
+                }
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                script {
+                    def scannerHome = tool 'sonarscanner4'
+                    withSonarQubeEnv('sonar-pro') {
+                        sh "${scannerHome}/bin/sonar-scanner -Dsonar.projectKey=${params.PROJECT_NAME}"
+                    }
+                }
+            }
+            post {
+                always {
+                    script {
+                        def status = currentBuild.currentResult
+                        slackSend(
+                            color: status == 'SUCCESS' ? 'good' : 'danger',
+                            channel: params.SLACK_CHANNEL,
+                            message: "Stage 'SonarQube Analysis' ${status}: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' (${env.BUILD_URL})",
+                            teamDomain: params.SLACK_TEAM_DOMAIN,
+                            tokenCredentialId: params.SLACK_TOKEN_CREDENTIALS_ID
+                        )
+                    }
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    withCredentials([string(credentialsId: params.DOCKER_CREDENTIALS_ID, variable: 'dockerPassword')]) {
+                        sh "docker login -u harikrishnan586 -p ${dockerPassword}"
+                        sh "docker build -t ${params.DOCKER_IMAGE_TAG} ."
+                    }
+                }
+            }
+            post {
+                always {
+                    script {
+                        def status = currentBuild.currentResult
+                        slackSend(
+                            color: status == 'SUCCESS' ? 'good' : 'danger',
+                            channel: params.SLACK_CHANNEL,
+                            message: "Stage 'Build Docker Image' ${status}: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' (${env.BUILD_URL})",
+                            teamDomain: params.SLACK_TEAM_DOMAIN,
+                            tokenCredentialId: params.SLACK_TOKEN_CREDENTIALS_ID
+                        )
+                    }
+                }
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                script {
+                    withCredentials([string(credentialsId: params.DOCKER_CREDENTIALS_ID, variable: 'dockerPassword')]) {
+                        sh "docker push ${params.DOCKER_IMAGE_TAG}"
+                    }
+                }
+            }
+            post {
+                always {
+                    script {
+                        def status = currentBuild.currentResult
+                        slackSend(
+                            color: status == 'SUCCESS' ? 'good' : 'danger',
+                            channel: params.SLACK_CHANNEL,
+                            message: "Stage 'Push Docker Image' ${status}: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' (${env.BUILD_URL})",
+                            teamDomain: params.SLACK_TEAM_DOMAIN,
+                            tokenCredentialId: params.SLACK_TOKEN_CREDENTIALS_ID
+                        )
+                    }
+                }
+            }
+        }
+
+        stage('Approval - Deploy on k8s') {
+            steps {
+                input 'Approve for KOPS Deploy'
+            }
+            post {
+                always {
+                    script {
+                        def status = currentBuild.currentResult
+                        slackSend(
+                            color: status == 'SUCCESS' ? 'good' : 'danger',
+                            channel: params.SLACK_CHANNEL,
+                            message: "Stage 'Approval - Deploy on k8s' ${status}: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' (${env.BUILD_URL})",
+                            teamDomain: params.SLACK_TEAM_DOMAIN,
+                            tokenCredentialId: params.SLACK_TOKEN_CREDENTIALS_ID
+                        )
+                    }
+                }
+            }
+        }
+
+        stage('Deployment on kops-k8s') {
+            steps {
+                script {
+                    withKubeConfig([credentialsId: 'k8s']) {
+                        sh 'kubectl apply -f mainservice.yaml' // Replace 'deployment.yaml' with your Kubernetes deployment configuration file name
+                    }
+                }
+            }
+            post {
+                always {
+                    script {
+                        def status = currentBuild.currentResult
+                        slackSend(
+                            color: status == 'SUCCESS' ? 'good' : 'danger',
+                            channel: params.SLACK_CHANNEL,
+                            message: "Stage 'Deployment on kops-k8s' ${status}: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' (${env.BUILD_URL})",
+                            teamDomain: params.SLACK_TEAM_DOMAIN,
+                            tokenCredentialId: params.SLACK_TOKEN_CREDENTIALS_ID
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            script {
+                def status = currentBuild.currentResult
+                slackSend(
+                    color: status == 'SUCCESS' ? 'good' : 'danger',
+                    channel: params.SLACK_CHANNEL,
+                    message: "Build ${status}: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' (${env.BUILD_URL})",
+                    teamDomain: params.SLACK_TEAM_DOMAIN,
+                    tokenCredentialId: params.SLACK_TOKEN_CREDENTIALS_ID
+                )
+            }
+        }
+
+        failure {
+            mail to: emailextrecipients([[$class: 'CulpritsRecipientProvider'], [$class: 'RequesterRecipientProvider']]),
+                 subject: "Failed: ${currentBuild.currentResult}",
+                 body: "Build failed for ${env.JOB_NAME} [${env.BUILD_NUMBER}]. Check console output: ${env.BUILD_URL}"
+        }
+    }
+}
