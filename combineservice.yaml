@@ -61,6 +61,13 @@ spec:
             value: sonarqube
         ports:
         - containerPort: 9000  # Corrected indentation for containerPort
+        resources:
+          requests:
+            memory: "2Gi"  # Increase the requested memory to 2GB
+            cpu: "500m"     # Example: Request 0.5 CPU cores
+          limits:
+            memory: "4Gi"  # Increase the memory limit to 4GB
+            cpu: "1000m"    # Example: Limit to 1 CPU core
 
 ---
 
@@ -78,5 +85,5 @@ spec:
     - protocol: TCP
       port: 9000
       targetPort: 9000
-      nodePort: 30001  # Choose any available port number in the range 30000-32767
+      nodePort: 30000  # Choose any available port number in the range 30000-32767
 
