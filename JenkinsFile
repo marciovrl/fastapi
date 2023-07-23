@@ -1,0 +1,69 @@
+pipeline {
+    agent any
+
+    stages {
+        stage('SCM checkout') {
+            steps {
+                git 'https://github.com/Skrishnan586/fastapi.git'
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                script {
+                    def scannerHome = tool 'sonarscanner4'
+                    withSonarQubeEnv('sonar-pro') {
+                        sh "${scannerHome}/bin/sonar-scanner -Dsonar.projectKey=python-test"
+                    }
+                }
+            }
+        }
+
+        stage('Quality Gate') {
+            steps {
+                sleep(time: 35, unit: 'SECONDS')
+                timeout(time: 1, unit: 'HOURS') {
+                    waitForQualityGate abortPipeline: true, credentialsId: 'sonar'
+                }
+            }
+            post {
+                failure {
+                    echo 'Sending email notification from Jenkins'
+                    step([$class: 'Mailer',
+                          notifyEveryUnstableBuild: true,
+                          recipients: emailextrecipients([[$class: 'CulpritsRecipientProvider'],
+                                                          [$class: 'RequesterRecipientProvider']])])
+                }
+            }
+        }
+
+        stage('Build Docker Image and push') {
+            steps {
+                script {
+                    withCredentials([string(credentialsId: 'dockerPass', variable: 'dockerPassword')]) {
+                        sh "docker login -u harikrishnan586 -p ${dockerPassword}"
+                        sh "docker build -t harikrishnan586/fastapi:latest ."
+                        sh "docker push harikrishnan586/fastapi:latest"
+                        sh "docker rmi harikrishnan586/fastapi:latest"
+                    }
+                }
+            }
+        }
+
+        stage('Approval - Deploy on k8s') {
+            steps {
+                input 'Approve for KOPS Deploy'
+            }
+        }
+
+        stage ('Deploy on k8s') {
+            steps {
+                script {
+                    withKubeCredentials(kubectlCredentials: [[credentialsId: 'k8s', namespace: 'default']]) {
+                        sh 'kubectl apply -f mainservice.yaml'
+                    }
+                }
+            }
+        }
+    }
+}
