@@ -46,7 +46,8 @@ def create_answer(payload):
         cars = json.load(stream)
 
     for car in cars:
-        if answers[0] in car.values() and answers[1] in car.values() and answers[2] in car.values():
+        if answers[0] in car.values() and answers[1] in car.values(
+        ) and answers[2] in car.values():
             result.append(car)
 
     return result

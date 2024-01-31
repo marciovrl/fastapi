@@ -1,0 +1,60 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+    -   id: trailing-whitespace
+    -   id: end-of-file-fixer
+    -   id: check-yaml
+    -   id: check-added-large-files
+  - repo: https://github.com/pre-commit/mirrors-isort
+    rev: v5.10.1
+    hooks:
+      - id: isort
+  - repo: https://github.com/pre-commit/mirrors-yapf
+    rev: v0.32.0
+    hooks:
+      - id: yapf
+        additional_dependencies: [toml]
+  - repo: https://github.com/pycqa/flake8
+    rev: 7.0.0
+    hooks:
+      - id: flake8
+        #additional_dependencies:
+  #      #  - flake8-quotes
+  - repo: local
+    # We do not use pre-commit/mirrors-mypy, 
+    # as it comes with opinionated defaults 
+    # (like --ignore-missing-imports)
+    # and is difficult to configure to run 
+    # with the dependencies correctly installed.
+    hooks:
+      - id: mypy
+        name: mypy
+        entry: mypy
+        # "mypy --package app --namespace-packages"
+        language: python
+        # use your preferred Python version
+        #language_version: system
+        #additional_dependencies: ["mypy==0.790"]
+        types: [python]
+        # use require_serial so that script
+        # is only called once per commit
+        require_serial: true
+        # Print the number of files as a sanity-check 
+        verbose: true
+  - repo: local
+    hooks:
+    - id: pylint
+      name: pylint
+      entry: pylint
+      language: python
+      # use your preferred Python version
+      #language_version: system
+      types: [python]
+      args:
+        [
+          "-rn", # Only display messages
+          "-sn", # Don't display the score
+        ]

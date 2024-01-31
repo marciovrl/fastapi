@@ -1,0 +1,16 @@
+
+fastapi
+uvicorn
+
+pytest
+requests
+httpx
+
+ipython
+flake8
+isort
+mypy
+pip-tools
+pre-commit
+pylint
+yapf
